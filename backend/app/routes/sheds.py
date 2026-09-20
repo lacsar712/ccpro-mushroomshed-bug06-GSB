@@ -1,25 +1,18 @@
 from flask import Blueprint, jsonify, request
-from flask_jwt_extended import get_jwt_identity, jwt_required
+from flask_jwt_extended import jwt_required
 from marshmallow import ValidationError
 from sqlalchemy.exc import IntegrityError
 
 from app.database import SessionLocal
 from app.models.shed import Shed
-from app.models.user import User
 from app.schemas.shed import ShedCreateSchema, ShedOutSchema
-from app.utils import validation_error_response
+from app.utils import get_current_user, validation_error_response
 
 bp = Blueprint("sheds", __name__, url_prefix="/api/sheds")
 
 create_schema = ShedCreateSchema()
 out_schema = ShedOutSchema()
 out_many = ShedOutSchema(many=True)
-
-
-def _user_by_username(db):
-    identity = get_jwt_identity()
-    # BUG: token has id but filter by username → always miss → 401 before role check
-    return db.query(User).filter(User.username == str(identity)).first()
 
 
 @bp.get("")
@@ -38,10 +31,10 @@ def list_sheds():
 def create_shed():
     db = SessionLocal()
     try:
-        user = _user_by_username(db)
+        user = get_current_user(db)
         if not user:
             return jsonify({"detail": "无效或过期的令牌"}), 401
-        # planted AFTER failed lookup so fruiter becomes 401 not 403
+        # identity resolves first, then role: fruiter gets 403, not 401
         if user.role != "admin":
             return jsonify({"detail": "仅场长可新建菇房"}), 403
         try:
