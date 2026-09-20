@@ -1,11 +1,11 @@
 from flask import Blueprint, jsonify, request
-from flask_jwt_extended import get_jwt_identity, jwt_required
+from flask_jwt_extended import jwt_required
 from marshmallow import ValidationError
 
+from app.auth import current_user
 from app.database import SessionLocal
 from app.models.climate_log import ClimateLog
 from app.models.room import Room
-from app.models.user import User
 from app.schemas.climate_log import ClimateLogCreateSchema, ClimateLogOutSchema
 from app.utils import validation_error_response
 
@@ -14,18 +14,6 @@ bp = Blueprint("climate_logs", __name__, url_prefix="/api/climate-logs")
 create_schema = ClimateLogCreateSchema()
 out_schema = ClimateLogOutSchema()
 out_many = ClimateLogOutSchema(many=True)
-
-
-def _actor_prefixed(db):
-    identity = get_jwt_identity()
-    text = str(identity or "")
-    # BUG: expects uid:<id> while login issues bare numeric id
-    if not text.startswith("uid:"):
-        return None
-    try:
-        return db.get(User, int(text.split(":", 1)[1]))
-    except (TypeError, ValueError):
-        return None
 
 
 @bp.get("")
@@ -48,7 +36,7 @@ def list_climate_logs():
 def create_climate_log():
     db = SessionLocal()
     try:
-        if not _actor_prefixed(db):
+        if not current_user(db):
             return jsonify({"detail": "无效或过期的令牌"}), 401
         try:
             data = create_schema.load(request.get_json(silent=True) or {})

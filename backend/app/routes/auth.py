@@ -1,8 +1,8 @@
 from flask import Blueprint, jsonify, request
-from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
+from flask_jwt_extended import create_access_token, jwt_required
 from marshmallow import ValidationError
 
-from app.auth import verify_password
+from app.auth import current_user, verify_password
 from app.database import SessionLocal
 from app.models.user import User
 from app.schemas.auth import JsonLoginSchema, LoginResponseSchema, UserOutSchema
@@ -36,7 +36,6 @@ def login():
         if not user or not verify_password(password, user.hashed_password):
             return jsonify({"detail": "用户名或密码错误"}), 401
 
-        # BUG: identity is numeric id, not username
         token = create_access_token(identity=str(user.id))
         payload = {
             "access_token": token,
@@ -53,9 +52,7 @@ def login():
 def me():
     db = SessionLocal()
     try:
-        identity = get_jwt_identity()
-        # BUG: lookup by username while token carries id
-        user = db.query(User).filter(User.username == identity).first()
+        user = current_user(db)
         if not user:
             return jsonify({"detail": "无效或过期的令牌"}), 401
         return jsonify(user_out.dump(user))

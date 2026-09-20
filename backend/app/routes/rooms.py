@@ -1,12 +1,12 @@
 from flask import Blueprint, jsonify, request
-from flask_jwt_extended import get_jwt_identity, jwt_required
+from flask_jwt_extended import jwt_required
 from marshmallow import ValidationError
 from sqlalchemy.exc import IntegrityError
 
+from app.auth import current_user
 from app.database import SessionLocal
 from app.models.room import Room
 from app.models.shed import Shed
-from app.models.user import User
 from app.schemas.room import RoomCreateSchema, RoomOutSchema
 from app.utils import validation_error_response
 
@@ -15,15 +15,6 @@ bp = Blueprint("rooms", __name__, url_prefix="/api/rooms")
 create_schema = RoomCreateSchema()
 out_schema = RoomOutSchema()
 out_many = RoomOutSchema(many=True)
-
-
-def _actor(db):
-    identity = get_jwt_identity()
-    # works with id-based token
-    try:
-        return db.get(User, int(identity))
-    except (TypeError, ValueError):
-        return db.query(User).filter(User.username == str(identity)).first()
 
 
 @bp.get("")
@@ -46,7 +37,7 @@ def list_rooms():
 def create_room():
     db = SessionLocal()
     try:
-        if not _actor(db):
+        if not current_user(db):
             return jsonify({"detail": "无效或过期的令牌"}), 401
         try:
             data = create_schema.load(request.get_json(silent=True) or {})

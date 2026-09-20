@@ -10,7 +10,7 @@ services:
     ports:
       - "3316:3306"
     volumes:
-      - mariadata_bug06_bug06:/var/lib/mysql
+      - mariadata_bug06:/var/lib/mysql
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --default-authentication-plugin=mysql_native_password
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-pmushroomshed-bug06-bug06-root"]
