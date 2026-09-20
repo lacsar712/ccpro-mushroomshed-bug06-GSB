@@ -1,0 +1,43 @@
+services:
+  db:
+    # 本机已有 mysql:8.0；与 MariaDB 协议兼容，避免额外拉 mariadb 镜像
+    image: mysql:8.0
+    environment:
+      MYSQL_USER: mushroomshed-bug06
+      MYSQL_PASSWORD: mushroomshed-bug06
+      MYSQL_DATABASE: mushroomshed-bug06
+      MYSQL_ROOT_PASSWORD: mushroomshed-bug06-bug06-root
+    ports:
+      - "3316:3306"
+    volumes:
+      - mariadata_bug06_bug06:/var/lib/mysql
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-pmushroomshed-bug06-bug06-root"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
+
+  backend:
+    build: ./backend
+    ports:
+      - "8806:8800"
+    environment:
+      DATABASE_URL: mysql+pymysql://mushroomshed-bug06:mushroomshed-bug06@db:3306/mushroomshed-bug06
+      JWT_SECRET: mushroom-shed-jwt-secret-change-me
+      JWT_ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: "480"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3806:80"
+    depends_on:
+      - backend
+
+volumes:
+  mariadata_bug06:
